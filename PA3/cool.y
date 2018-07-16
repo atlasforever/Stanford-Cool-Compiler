@@ -141,6 +141,8 @@
     %type <expression> expr
     %type <expressions> expr_comma
     %type <expressions> expr_list
+    %type <expressions> block_list
+    %type <expression> let_list
     %type <case_> case
     %type <cases> case_list
 
@@ -218,7 +220,86 @@
     { $$ = static_dispatch($1, $3, $5, $7); }
     | expr '.' OBJECTID '(' expr_comma ')'
     { $$ = dispatch($1, $3, $5); }
-    | OBEJCTID '('
+    | OBEJCTID '(' expr_comma ')'
+    { $$ = dispatch(object(idtable.add_string("self")), $1, $3); }
+    | IF expr THEN expr ELSE expr
+    { $$ = cond($2, $4, $6); }
+    | WHILE expr LOOP expr POOL
+    { $$ = loop($2, $4); }
+    | '{' block_list '}'
+    { $$ = block($2); }
+    | LET let_list
+    { $$ = $2; }
+    | CASE expr OF case_list ESAC
+    { $$ = typcase($2, $4);}
+    | NEW TYPEID
+    { $$ = new_($2); }
+    | ISVOID expr
+    { $$ = isvoid($2); }
+    | expr '+' expr
+    { $$ = plus($1, $3); }
+    | expr '-' expr
+    { $$ = sub($1, $3); }
+    | expr '*' expr
+    { $$ = mul($1, $3); }
+    | expr '/' expr
+    { $$ = divide($1, $3); }
+    | '~' expr
+    { $$ = neg($2); }
+    | expr '<' expr
+    { $$ = lt($1, $3); }
+    | expr LE expr
+    { $$ = leq($1, $3); }
+    | expr '=' expr
+    { $$ = eq($1, $3); }
+    | NOT expr
+    { $$ = comp($2); }
+    | '(' expr ')'
+    { $$ = $2; }
+    | OBJECTID
+    { $$ = object($1); }
+    | INT_CONST
+    { $$ = int_const($1); }
+    | STR_CONST
+    { $$ = string_const($1); }
+    | BOOL_CONST
+    { $$ = bool_const($1); }
+    ;
+
+    expr_comma
+    :   /* Empty */
+    { $$ = nil_Expressions(); }
+    | expr
+    { $$ = single_Expressions($1); }
+    | expr_comma ',' expr
+    { $$ = append_Expressions($1, single_Expressions($3); }
+    ;
+
+    block_list
+    : expr ';'
+    { $$ = single_Expressions($1); }
+    | block_list expr ';'
+    { $$ = append_Expressions($1, single_Expressions($2)); }
+    ;
+
+    let_list
+    : OBJECTID ':' TYPEID IN expr
+    { $$ = let($1, $3, no_expr(), $5); }
+    | OBJECTID ':' TYPEID ASSIGN expr IN expr
+    { $$ = let($1, $3, $5, $7); }
+    /* Transformed into nested 'let's with single identifiers */
+    | OBJECTID ';' TYPEID ',' let_list
+    { $$ = let($1, $3, no_expr(), $4); }
+    | OBJECTID ';' TYPEID ASSIGN expr ',' let_list
+    { $$ = let($1, $3, $5, $7); }
+    ;
+
+    case_list
+    : OBJECTID ':' TYPEID DARROW expr ';'
+    { $$ = single_Cases(branch($1, $3, $5); }
+    | case_list OBJECTID ':' TYPEID DARROW expr ';'
+    { $$ = append_Cases($1, single_Cases(branch($2, $4, $6))); }
+    ;
 
     /* end of grammar */
     %%

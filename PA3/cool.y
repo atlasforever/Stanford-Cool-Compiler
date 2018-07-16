@@ -140,10 +140,8 @@
     %type <formal> formal
     %type <expression> expr
     %type <expressions> expr_comma
-    %type <expressions> expr_list
     %type <expressions> block_list
     %type <expression> let_list
-    %type <case_> case
     %type <cases> case_list
 
     
@@ -167,10 +165,10 @@
     ;
     
     class_list
-    : class			/* single class */
+    : class				/* single class */
     { $$ = single_Classes($1);
     parse_results = $$; }
-    | class_list class	/* several classes */
+    | class_list class  /* several classes */
     { $$ = append_Classes($1,single_Classes($2)); 
     parse_results = $$; }
     ;
@@ -178,9 +176,11 @@
     /* If no parent is specified, the class inherits from the Object class. */
     class	: CLASS TYPEID '{' feature_list '}' ';'
     { $$ = class_($2,idtable.add_string("Object"),$4,
-    stringtable.add_string(curr_filename)); }
+    				stringtable.add_string(curr_filename)); }
     | CLASS TYPEID INHERITS TYPEID '{' feature_list '}' ';'
     { $$ = class_($2,$4,$6,stringtable.add_string(curr_filename)); }
+	| error ';'
+	{}
     ;
     
     /* Feature list may be empty, but no empty features in list. */
@@ -189,7 +189,7 @@
     | feature ';'
     { $$ = single_Features($1); }
     | feature_list feature ';'
-    { $$ = append_Features($1, single_Features($2); }
+    { $$ = append_Features($1, single_Features($2)); }
     ;
     
     feature
@@ -199,13 +199,17 @@
     { $$ = attr($1, $3, no_expr()); }
     | OBJECTID ':' TYPEID ASSIGN expr
     { $$ = attr($1, $3, $5); }
+	| error
+	{}
     ;
     
     formal_list
-    : formal
+    : /* Empty */
+	{ $$ = nil_Formals(); }
+	|formal
     { $$ = single_Formals($1); }
     | formal_list ',' formal
-    { $$ = append_Formals($1, single_Formals($3); }
+    { $$ = append_Formals($1, single_Formals($3)); }
     ;
 
     formal
@@ -220,9 +224,9 @@
     { $$ = static_dispatch($1, $3, $5, $7); }
     | expr '.' OBJECTID '(' expr_comma ')'
     { $$ = dispatch($1, $3, $5); }
-    | OBEJCTID '(' expr_comma ')'
+    | OBJECTID '(' expr_comma ')'
     { $$ = dispatch(object(idtable.add_string("self")), $1, $3); }
-    | IF expr THEN expr ELSE expr
+    | IF expr THEN expr ELSE expr FI
     { $$ = cond($2, $4, $6); }
     | WHILE expr LOOP expr POOL
     { $$ = loop($2, $4); }
@@ -272,7 +276,7 @@
     | expr
     { $$ = single_Expressions($1); }
     | expr_comma ',' expr
-    { $$ = append_Expressions($1, single_Expressions($3); }
+    { $$ = append_Expressions($1, single_Expressions($3)); }
     ;
 
     block_list
@@ -280,6 +284,8 @@
     { $$ = single_Expressions($1); }
     | block_list expr ';'
     { $$ = append_Expressions($1, single_Expressions($2)); }
+	| error /* Ignore this block */
+	{}
     ;
 
     let_list
@@ -289,14 +295,16 @@
     { $$ = let($1, $3, $5, $7); }
     /* Transformed into nested 'let's with single identifiers */
     | OBJECTID ';' TYPEID ',' let_list
-    { $$ = let($1, $3, no_expr(), $4); }
+    { $$ = let($1, $3, no_expr(), $5); }
     | OBJECTID ';' TYPEID ASSIGN expr ',' let_list
     { $$ = let($1, $3, $5, $7); }
+	| error ',' let_list
+	{}
     ;
 
     case_list
     : OBJECTID ':' TYPEID DARROW expr ';'
-    { $$ = single_Cases(branch($1, $3, $5); }
+    { $$ = single_Cases(branch($1, $3, $5)); }
     | case_list OBJECTID ':' TYPEID DARROW expr ';'
     { $$ = append_Cases($1, single_Cases(branch($2, $4, $6))); }
     ;

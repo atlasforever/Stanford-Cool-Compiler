@@ -140,7 +140,7 @@
     %type <formal> formal
     %type <expression> expr
     %type <expressions> expr_comma
-    %type <expressions> block_list
+    %type <expressions> block_cont
     %type <expression> let_list
     %type <cases> case_list
 
@@ -166,21 +166,18 @@
     
     class_list
     : class				/* single class */
-    { $$ = single_Classes($1);
-    parse_results = $$; }
+    { $$ = single_Classes($1); parse_results = $$; }
     | class_list class  /* several classes */
-    { $$ = append_Classes($1,single_Classes($2)); 
-    parse_results = $$; }
+    { $$ = append_Classes($1,single_Classes($2)); parse_results = $$; }
     ;
     
     /* If no parent is specified, the class inherits from the Object class. */
     class	: CLASS TYPEID '{' feature_list '}' ';'
     { $$ = class_($2,idtable.add_string("Object"),$4,
-    				stringtable.add_string(curr_filename)); }
+    				        stringtable.add_string(curr_filename)); }
     | CLASS TYPEID INHERITS TYPEID '{' feature_list '}' ';'
     { $$ = class_($2,$4,$6,stringtable.add_string(curr_filename)); }
-	| error ';'
-	{}
+	| error ';' {}
     ;
     
     /* Feature list may be empty, but no empty features in list. */
@@ -199,21 +196,20 @@
     { $$ = attr($1, $3, no_expr()); }
     | OBJECTID ':' TYPEID ASSIGN expr
     { $$ = attr($1, $3, $5); }
-	| error
-	{}
+    | error {}
     ;
     
     formal_list
     : /* Empty */
-	{ $$ = nil_Formals(); }
-	|formal
+    { $$ = nil_Formals(); }
+    | formal
     { $$ = single_Formals($1); }
     | formal_list ',' formal
     { $$ = append_Formals($1, single_Formals($3)); }
     ;
 
     formal
-    : OBJECTID ';' TYPEID
+    : OBJECTID ':' TYPEID
     { $$ = formal($1, $3); }
     ;
 
@@ -230,7 +226,7 @@
     { $$ = cond($2, $4, $6); }
     | WHILE expr LOOP expr POOL
     { $$ = loop($2, $4); }
-    | '{' block_list '}'
+    | '{' block_cont '}'
     { $$ = block($2); }
     | LET let_list
     { $$ = $2; }
@@ -279,13 +275,13 @@
     { $$ = append_Expressions($1, single_Expressions($3)); }
     ;
 
-    block_list
+    block_cont
     : expr ';'
     { $$ = single_Expressions($1); }
-    | block_list expr ';'
+    | block_cont expr ';'
     { $$ = append_Expressions($1, single_Expressions($2)); }
-	| error /* Ignore this block */
-	{}
+    | error ';' /* Goto the next expression */
+    {}
     ;
 
     let_list
@@ -294,12 +290,11 @@
     | OBJECTID ':' TYPEID ASSIGN expr IN expr
     { $$ = let($1, $3, $5, $7); }
     /* Transformed into nested 'let's with single identifiers */
-    | OBJECTID ';' TYPEID ',' let_list
+    | OBJECTID ':' TYPEID ',' let_list
     { $$ = let($1, $3, no_expr(), $5); }
-    | OBJECTID ';' TYPEID ASSIGN expr ',' let_list
+    | OBJECTID ':' TYPEID ASSIGN expr ',' let_list
     { $$ = let($1, $3, $5, $7); }
-	| error ',' let_list
-	{}
+    | error ',' let_list {}
     ;
 
     case_list
